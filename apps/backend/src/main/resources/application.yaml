@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: ${POC_SLUG:local-dev}-backend
+
+server:
+  # Cloud Run (and the platform generally) assigns the port; it is not guaranteed to be 8081.
+  port: ${PORT:8081}
+  address: 0.0.0.0
+
+# Deliberately no server.servlet.context-path: this container is a sidecar, only ever reached at
+# http://localhost:<port> from the ingress container — there is no proxy prefix to strip here at
+# all, but keeping routing at the root matches every other POC container and keeps /healthz simple.
+
+poc:
+  slug: ${POC_SLUG:local-dev}
+  platform-api-url: ${PLATFORM_API_URL:http://localhost:8080}
+  # The value self-service-api's JwtService signs tokens with (jwt.issuer, default self-service-api).
+  jwt-issuer: ${JWT_ISSUER:self-service-api}
+
+logging:
+  level:
+    com.sails.poc.testbed: DEBUG

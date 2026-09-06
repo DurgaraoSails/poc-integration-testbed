@@ -1,0 +1,27 @@
+apiVersion: sails.poc/v1
+name: POC Integration Testbed
+description: >-
+  Sample chatbot POC used to test POC authentication (JWT verification against self-service-api's
+  JWKS), isolated per-user/per-POC file management, and the ingress + sidecar deploy pipeline.
+team: platform-testing
+
+containers:
+  - name: frontend
+    role: ingress            # binds $PORT, receives all external traffic
+    dockerfile: apps/frontend/Dockerfile
+    context: apps/frontend
+    health: /healthz
+
+  - name: backend
+    role: sidecar            # reachable from `frontend` at SVC_BACKEND_URL (localhost:8081)
+    dockerfile: apps/backend/Dockerfile
+    context: apps/backend
+    port: 8081
+    health: /healthz
+
+resources: { cpu: "1", memory: "1Gi" }
+scaling:   { min: 0, max: 3 }
+
+platform:
+  database: { enabled: false }
+  files:    { enabled: true }

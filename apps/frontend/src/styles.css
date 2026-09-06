@@ -1,0 +1,40 @@
+/* Intentionally minimal: the platform stylesheet is linked at runtime from PLATFORM_API_URL
+   (see src/app/sails.ts), so a token change reaches this POC without a rebuild. Only POC-specific
+   layout goes here, written against the --sails-* semantic variables so dark mode needs no rules
+   of its own. */
+
+.testbed-grid {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+}
+
+.testbed-section h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.testbed-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.testbed-file-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.testbed-file-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+}

@@ -1,0 +1,35 @@
+# Local-only stand-in for what the platform does at deploy time: runs both containers from
+# poc.yaml side by side, wires SVC_BACKEND_URL the same way the platform would (just with Compose's
+# DNS instead of "localhost", since these are two containers here rather than one Cloud Run
+# service), and points PLATFORM_API_URL at a self-service-api you run separately on the host.
+#
+# Usage:
+#   docker compose up --build
+#   open http://localhost:8080
+#
+# On Linux, replace host.docker.internal with your host's actual IP, or add:
+#   extra_hosts: ["host.docker.internal:host-gateway"]
+services:
+  backend:
+    build: ./apps/backend
+    environment:
+      PORT: "8081"
+      POC_SLUG: ${POC_SLUG:-local-dev}
+      PLATFORM_API_URL: ${PLATFORM_API_URL:-http://host.docker.internal:8080}
+      JWT_ISSUER: ${JWT_ISSUER:-self-service-api}
+    ports:
+      - "8081:8081"
+
+  frontend:
+    build: ./apps/frontend
+    environment:
+      PORT: "8080"
+      POC_SLUG: ${POC_SLUG:-local-dev}
+      BASE_PATH: ""
+      PORTAL_ORIGIN: "*"
+      PLATFORM_API_URL: ${PLATFORM_API_URL:-http://host.docker.internal:8080}
+      SVC_BACKEND_URL: "http://backend:8081"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
