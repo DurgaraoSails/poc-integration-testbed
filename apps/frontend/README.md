@@ -14,9 +14,13 @@ aren't reachable from the browser directly).
 
 ## Panels
 
-- **Auth** — fetches a POC-scoped JWT from `GET _portal/session-token` when running behind
-  self-service-portal-gateway, or accepts one pasted by hand otherwise. "Verify with backend"
-  sends it to `backend`'s `/api/session/whoami`, which checks it against self-service-api's JWKS.
+- **Auth** — gets a POC-scoped JWT the way this actually has to work now that there's no gateway
+  in front of a deployed POC: on load, this page posts `{type:'poc:ready'}` to `window.parent` and
+  waits for the portal to answer with `{type:'portal:session', token}` (see
+  `session.service.ts` for the full handshake, and self-service-portal's `poc-bridge.ts`/
+  `poc-workspace.ts` for the other half of it). Not embedded in a portal iframe at all — local dev,
+  a bare `docker run`? Paste a token by hand instead. "Verify with backend" sends whichever token
+  you have to `backend`'s `/api/session/whoami`, which checks it against self-service-api's JWKS.
 - **Chat** — static predefined replies, via `backend`'s `/api/chat`.
 - **Files** — upload/list/download/delete, proxied through `backend` to self-service-api's
   `/poc-files` endpoints, using whatever token the Auth panel currently holds.

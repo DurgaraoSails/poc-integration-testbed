@@ -1,18 +1,29 @@
 import { Injectable, signal } from '@angular/core';
 
+import { sailsConfig } from './sails';
+
 /**
  * Acquires the POC-scoped JWT self-service-api mints in `POST /pocs/{slug}/launch`, and holds it
- * in memory only — never localStorage/sessionStorage (self-service-portal-gateway's own bridge
- * contract calls that out explicitly, and it's good practice regardless).
+ * in memory only — never localStorage/sessionStorage.
  *
- * Two ways a token gets here:
- *  1. Deployed behind self-service-portal-gateway: a same-origin `GET /_portal/session-token`
- *     (the gateway owns that path; it never reaches this container) returns the current session's
- *     token, refreshed on every call.
- *  2. Anywhere else (local `ng serve`, a bare `docker run` with no gateway in front): that request
- *     simply won't resolve to anything meaningful, so this UI falls back to letting you paste a
- *     token by hand — e.g. one you copied from the portal's network tab, or minted by calling
- *     self-service-api's `/pocs/{slug}/launch` yourself while signed in as that user.
+ * There is no gateway or proxy sitting in front of a deployed POC anymore, so the only way the
+ * token reaches this page at all is the portal handing it over directly, over `postMessage`, to
+ * the iframe it's embedded in (see self-service-portal's `poc-bridge.ts` / `poc-workspace.ts`,
+ * and `docs/specs/poc-bridge-contract.md`):
+ *
+ *  1. This page posts `{ type: 'poc:ready', v: 1 }` to `window.parent` once it's listening.
+ *  2. The portal verifies it's really talking to this iframe, then posts back
+ *     `{ type: 'portal:session', token, ... }` — only `token` is relied on here; the portal's
+ *     TypeScript contract also promises `expiresAt`/`user`/`theme`, but self-service-api's real
+ *     `/pocs/{slug}/launch` response doesn't carry those (it returns `expiresIn`/`launchUrl`
+ *     instead), so this only reads the one field guaranteed to actually be there.
+ *  3. `PORTAL_ORIGIN` (injected by the platform, see `sails.ts`) is checked on every inbound
+ *     message and used as the target on every outbound one — without it, any page that can frame
+ *     this one could hand it a token.
+ *
+ * Not embedded in an iframe at all (local `ng serve`, a bare `docker run`)? Then no parent will
+ * ever answer `poc:ready`, so this UI falls back to letting you paste a token by hand — e.g. one
+ * minted by calling self-service-api's `/pocs/{slug}/launch` yourself while signed in as that user.
  */
 export interface DecodedClaims {
   sub?: string;
@@ -24,34 +35,59 @@ export interface DecodedClaims {
   [key: string]: unknown;
 }
 
+const BOOTSTRAP_TIMEOUT_MS = 3000;
+
 @Injectable({ providedIn: 'root' })
 export class SessionService {
   readonly token = signal<string | null>(null);
-  readonly source = signal<'gateway' | 'manual' | null>(null);
+  readonly source = signal<'bridge' | 'manual' | null>(null);
   readonly claims = signal<DecodedClaims | null>(null);
   readonly bootstrapping = signal(true);
   readonly verifiedClaims = signal<Record<string, unknown> | null>(null);
   readonly verifyError = signal<string | null>(null);
   readonly verifying = signal(false);
 
-  async bootstrap(): Promise<void> {
+  bootstrap(): void {
     this.bootstrapping.set(true);
-    try {
-      const response = await fetch('_portal/session-token');
-      if (response.ok) {
-        const body = (await response.json()) as { accessToken?: string };
-        if (body.accessToken) {
-          this.setToken(body.accessToken, 'gateway');
-        }
-      }
-    } catch {
-      // Not running behind the gateway right now — that's expected in local dev.
-    } finally {
+
+    if (window.parent === window) {
+      // Not embedded in anything — there's no portal to ask, so go straight to manual entry.
       this.bootstrapping.set(false);
+      return;
     }
+
+    window.addEventListener('message', this.onPortalMessage);
+    this.postToParent({ type: 'poc:ready', v: 1 });
+
+    // The portal may not exist, may be a different contract version, or may simply never answer
+    // (see the known field-mismatch bug in self-service-portal referenced above) — don't leave
+    // the UI stuck on "looking for a session" forever.
+    setTimeout(() => {
+      if (!this.token()) this.bootstrapping.set(false);
+    }, BOOTSTRAP_TIMEOUT_MS);
   }
 
-  setToken(token: string, source: 'gateway' | 'manual'): void {
+  /** Asks the portal to mint and hand over a fresh token — mirrors the `poc:refresh` message the
+   *  real bridge contract defines for a near-expiry or 401'd token. */
+  requestRefresh(): void {
+    this.postToParent({ type: 'poc:refresh', v: 1 });
+  }
+
+  private postToParent(message: unknown): void {
+    window.parent.postMessage(message, sailsConfig.portalOrigin === '*' ? '*' : sailsConfig.portalOrigin);
+  }
+
+  private onPortalMessage = (event: MessageEvent): void => {
+    const expected = sailsConfig.portalOrigin;
+    if (expected !== '*' && event.origin !== expected) return;
+    const data = event.data as { type?: string; token?: string } | undefined;
+    if (data?.type === 'portal:session' && typeof data.token === 'string') {
+      this.setToken(data.token, 'bridge');
+      this.bootstrapping.set(false);
+    }
+  };
+
+  setToken(token: string, source: 'bridge' | 'manual'): void {
     this.token.set(token);
     this.source.set(source);
     this.claims.set(decodeJwtPayload(token));

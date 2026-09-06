@@ -42,36 +42,45 @@ Push this repo to GitHub, then in self-service-portal: **Admin → Add POC**, gi
 this repo's `githubUrl`. See the caveats below before you do — as of this writing, deploying a
 `poc.yaml` with more than one container isn't actually wired up yet.
 
+## Current architecture (no gateway, no separate pipeline service)
+
+`self-service-portal-gateway` and `poc-deploy-pipeline` are both deprecated. There is no proxy
+sitting in front of a deployed POC anymore, and the build/deploy pipeline is moving into
+`self-service-api` itself rather than living as a separate service. Two things follow from that:
+
+1. **Identity only ever reaches a POC as a JWT, never as headers.** There's no proxy left to strip
+   client-supplied `X-Sails-*` headers and set trustworthy ones in their place (which is the whole
+   reason `poc-platform-sdk`'s contract could ever call that pattern safe). So this repo's backend
+   verifying the JWT itself against self-service-api's JWKS isn't a testbed simplification — it's
+   the only mechanism that currently exists for a POC to know who's calling it.
+2. **The portal has to hand the token to the POC directly, over `postMessage`.** With no gateway to
+   turn a `?token=` query param into a cookie, the only remaining path is the one
+   self-service-portal's own `poc-bridge.ts`/`poc-workspace.ts` already implement: the POC's iframe
+   posts `{type:'poc:ready'}` to its parent, and the portal posts back
+   `{type:'portal:session', token}`. This repo's frontend (`session.service.ts`) implements the
+   POC side of exactly that handshake — see `apps/frontend/README.md`.
+
 ## Known platform gaps this repo surfaces
 
-Building this surfaced a few things worth knowing before you rely on a clean end-to-end test:
-
-- **The multi-container pipeline isn't live yet.** `poc-deploy-pipeline` (as of commit `a838970`)
-  and the mainline of `self-service-api` (branch `feature/multipoc-deploy`) don't parse `poc.yaml`
-  or build more than the root `Dockerfile` — the `ManifestParser`/`ManifestValidator` classes
-  `poc-platform-sdk`'s contract describes only exist on `self-service-api`'s
-  `feature/sidecar-deployment` branch, and nothing in `poc-deploy-pipeline` references them yet.
-  This repo's `poc.yaml` is written to `poc-platform-sdk`'s schema exactly so it's ready the moment
-  that support lands — that's the point of it — but deploying it *today* will very likely either
-  fail to find a root `Dockerfile` or only build one of the two containers, depending on how far
-  along that work is when you try it.
-- **self-service-portal-gateway doesn't inject `X-Sails-*` identity headers yet.** `poc-platform-sdk`'s
-  contract describes reading identity from `X-Sails-User-Id` etc., but the gateway's
-  `SessionAuthFilter` (as of commit history at the time this was written) only validates a cookie
-  and proxies through — it never sets those headers on the downstream request. That's why this
-  repo's backend verifies the JWT itself instead of trusting headers: right now, the JWT is the
-  only identity signal that actually reaches a POC container. `GET /_portal/session-token` (the
-  gateway's sliding-refresh endpoint) is real and working, and is what the Auth panel calls first.
-- **self-service-portal's launch response doesn't match self-service-api's actual response
-  shape.** The portal's `PocLaunchResponse` TypeScript interface expects `expiresAt`, `appUrl`,
-  `user`, and `theme`; the real backend (`PocLaunchController`/`PocLaunchService`) returns
+- **The multi-container manifest pipeline isn't live yet.** As of this writing, nothing parses
+  `poc.yaml` or builds more than a root `Dockerfile` — the `ManifestParser`/`ManifestValidator`
+  classes `poc-platform-sdk`'s contract describes only exist on `self-service-api`'s
+  `feature/sidecar-deployment` branch. This repo's `poc.yaml` is written to `poc-platform-sdk`'s
+  schema exactly so it's ready the moment that support lands inside `self-service-api` — that's the
+  point of it — but deploying this repo *today* will very likely either fail to find a root
+  `Dockerfile` or only build one of the two containers, depending on how far along that work is.
+- **self-service-portal's launch response doesn't match self-service-api's actual response shape
+  — and now that there's no gateway, this is a harder blocker than it used to be.** The portal's
+  `PocLaunchResponse` TypeScript interface expects `expiresAt`, `appUrl`, `user`, and `theme`; the
+  real backend (`PocLaunchController`/`PocLaunchService`) returns
   `{ token, expiresIn, launchUrl, pocId, slug }` — no `user`, no `theme`, and different names for
-  the other two. As written, `poc-workspace.ts` sets the launch iframe's `src` from the
-  now-`undefined` `response.appUrl`, which means launching a POC through the portal's iframe flow
-  may not actually load anything today. Worth fixing in `self-service-portal` independently of this
-  repo — it isn't something a POC-side change can work around, so this backend and the Auth panel
-  are built against the real (`launchUrl`/`expiresIn`) shape and don't depend on the portal fixing
-  it to be testable via manual token entry.
+  the other two. `poc-workspace.ts` sets the launch iframe's `src` from the now-`undefined`
+  `response.appUrl`, so the iframe may never even load, and separately, whatever `poc-bridge.ts`
+  posts as `portal:session` needs to actually carry a `token` field pulled from the real response
+  for this repo's bridge handshake to receive anything. Worth fixing in `self-service-portal`
+  independently of this repo — it isn't something a POC-side change can work around. This repo's
+  Auth panel supports pasting a token by hand specifically so pieces 1–3 stay testable while that's
+  outstanding.
 - **CORS**: file calls are proxied through the `backend` sidecar rather than called directly from
   the browser specifically so this doesn't depend on self-service-api allowing cross-origin
   requests from arbitrary POC origins. If you change that later, check self-service-api's CORS
@@ -79,5 +88,5 @@ Building this surfaced a few things worth knowing before you rely on a clean end
 
 None of the above blocks testing pieces 1–3 independently (chat, file management via the backend
 proxy, and JWT verification all work standalone via docker-compose and a manually-pasted token);
-it's specifically end-to-end testing through the portal's iframe launch, and multi-container
-deploys through the pipeline, that are gated on the items above landing elsewhere.
+it's specifically end-to-end testing through the portal's real iframe launch, and multi-container
+deploys, that are gated on the items above landing elsewhere.

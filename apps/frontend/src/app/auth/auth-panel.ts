@@ -13,7 +13,7 @@ import { SessionService } from '../session.service';
       <h2>Auth</h2>
 
       @if (session.bootstrapping()) {
-        <p class="sails-muted">Looking for a session behind the gateway…</p>
+        <p class="sails-muted">Asked the parent window for a session (poc:ready) — waiting…</p>
       } @else if (session.token()) {
         <p class="sails-muted" style="margin-top:0">
           Token source: <strong>{{ session.source() }}</strong>
@@ -26,6 +26,11 @@ import { SessionService } from '../session.service';
           <button class="sails-btn" (click)="session.verifyWithBackend()" [disabled]="session.verifying()">
             {{ session.verifying() ? 'Verifying…' : 'Verify with backend' }}
           </button>
+          @if (session.source() === 'bridge') {
+            <button class="sails-btn sails-btn--secondary" (click)="session.requestRefresh()">
+              Ask portal to refresh (poc:refresh)
+            </button>
+          }
           <button class="sails-btn sails-btn--secondary" (click)="session.clear()">Clear token</button>
         </div>
 
@@ -37,8 +42,9 @@ import { SessionService } from '../session.service';
         }
       } @else {
         <p class="sails-muted" style="margin-top:0">
-          No session token yet. If this POC isn't running behind
-          self-service-portal-gateway right now, paste one you minted or copied manually.
+          No session token yet — either this isn't embedded in the portal's iframe right now, or
+          the portal never answered <code>poc:ready</code> with a <code>portal:session</code>
+          message. Paste one you minted or copied manually to keep testing.
         </p>
         <div class="testbed-row">
           <input

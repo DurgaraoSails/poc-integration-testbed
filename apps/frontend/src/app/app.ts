@@ -38,6 +38,6 @@ export class App implements OnInit {
   private readonly session = inject(SessionService);
 
   ngOnInit(): void {
-    void this.session.bootstrap();
+    this.session.bootstrap();
   }
 }
