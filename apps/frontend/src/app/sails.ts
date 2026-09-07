@@ -16,6 +16,18 @@ declare global {
   }
 }
 
+/**
+ * Bridge protocol versions this POC understands, mirroring `@sails/poc-bridge`'s
+ * `SUPPORTED_VERSIONS`. A literal list, never derived from a single "current" constant: a POC is
+ * deployed on its own schedule and may run older or newer than the portal, so accepting the
+ * current version and the one before it is what keeps a portal release from cutting every
+ * deployed POC off at once.
+ */
+export const SUPPORTED_BRIDGE_VERSIONS: readonly number[] = [1];
+
+/** The version this build stamps on everything it sends. */
+export const BRIDGE_PROTOCOL_VERSION = 1;
+
 const FALLBACK: SailsConfig = {
   basePath: '',
   platformApiUrl: '',
@@ -65,17 +77,35 @@ export class Sails {
   }
 
   /**
-   * An iframe cannot inherit the parent's theme class, so the portal hands it over twice: as a
-   * query param on first load (no flash of the wrong theme), then by postMessage on each toggle.
+   * An iframe cannot inherit the parent's theme class, so the portal hands it over: on
+   * `portal:session` when the session is established, and again on `portal:theme` each time the
+   * user toggles. The `?theme=` query param this class also reads is a leftover from before the
+   * bridge existed — the portal no longer appends it, so `portal:session` is what actually decides
+   * the initial theme now. It is kept only for opening this app directly outside the portal.
+   *
+   * <p>The message names come from `@sails/poc-bridge`'s protocol, not from this repo: the portal
+   * sends `portal:theme` carrying `theme`, and the theme is repeated on `portal:session` so a POC
+   * that connects mid-session starts on the right one. This listener previously waited for
+   * `sails:theme` carrying `mode` — a name that never existed on the portal side — so the toggle
+   * silently did nothing here. That is exactly the two-hand-rolled-halves drift the shared package
+   * exists to prevent; this stays hand-rolled only until the package is published.
    */
   private followPortal(): void {
     window.addEventListener('message', (event: MessageEvent) => {
-      // Without this origin check, any page that can frame you could drive your UI.
+      // Only the frame that embedded us, and only from the origin the platform named. Without
+      // both checks, any page that can frame this one could drive its UI.
+      if (event.source !== window.parent) return;
       if (this.config.portalOrigin !== '*' && event.origin !== this.config.portalOrigin) return;
-      if (event.data?.type === 'sails:theme') {
-        this.darkMode.set(event.data.mode === 'dark');
-        this.apply();
-      }
+
+      const data = event.data as { type?: unknown; v?: unknown; theme?: unknown } | null;
+      if (!data || typeof data !== 'object' || typeof data.v !== 'number') return;
+      // A version this build cannot interpret is dropped rather than guessed at.
+      if (!SUPPORTED_BRIDGE_VERSIONS.includes(data.v)) return;
+      if (data.type !== 'portal:theme' && data.type !== 'portal:session') return;
+      if (data.theme !== 'light' && data.theme !== 'dark') return;
+
+      this.darkMode.set(data.theme === 'dark');
+      this.apply();
     });
   }
 

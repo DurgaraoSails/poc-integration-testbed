@@ -74,6 +74,33 @@ app.all('/api/*', async (req, res) => {
 
 app.use(express.static(dist, { index: false }));
 
+/**
+ * Who may frame this POC, enforced by the browser rather than only by our own script.
+ *
+ * PORTAL_ORIGIN is the platform-injected origin of the portal that embeds us. The bridge already
+ * checks it on every postMessage, but that only governs what we *talk to* — it does nothing to
+ * stop a rogue page embedding this app and phishing a user in front of it. A deployed POC is
+ * public (the platform deploys with --allow-unauthenticated, because the browser is the only
+ * client and holds no Google identity token), so the URL being reachable by anyone is by design
+ * and this header is what keeps it from being *embeddable* by anyone.
+ *
+ * Deliberately CSP rather than X-Frame-Options: the latter has no working allowlist form
+ * (ALLOW-FROM is unsupported in modern browsers), so it could only ever say DENY or SAMEORIGIN —
+ * both of which break the portal's iframe outright. That is the same header that produced the
+ * original "refused to connect".
+ *
+ * With no PORTAL_ORIGIN set (local dev), no header is sent at all rather than a locked-down one,
+ * so `ng serve` and a bare `docker run` keep working.
+ */
+function frameAncestorsFor(portalOrigin) {
+  if (!portalOrigin || portalOrigin === '*') {
+    return null;
+  }
+  return `frame-ancestors 'self' ${portalOrigin}`;
+}
+
+const FRAME_ANCESTORS = frameAncestorsFor(CONFIG.portalOrigin);
+
 // SPA fallback. Per-request, so the injected config is always current.
 app.get('*', (req, res) => {
   const html = template
@@ -83,6 +110,9 @@ app.get('*', (req, res) => {
       `<script>window.__SAILS__=${JSON.stringify({ ...CONFIG, user: { id: null, email: null } }).replace(/</g, '\\u003c')}</script>`,
     );
 
+  if (FRAME_ANCESTORS) {
+    res.setHeader('Content-Security-Policy', FRAME_ANCESTORS);
+  }
   res.type('html').send(html);
 });
 
