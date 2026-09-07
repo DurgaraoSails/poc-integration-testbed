@@ -10,6 +10,7 @@ containers:
     role: ingress            # binds $PORT, receives all external traffic
     dockerfile: apps/frontend/Dockerfile
     context: apps/frontend
+    port: 8080
     health: /healthz
 
   - name: backend
