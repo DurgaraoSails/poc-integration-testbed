@@ -22,13 +22,30 @@ This blocks three things today:
   Tailwind and Vitest, because the install that would regenerate it cannot resolve the private
   package. **Someone with a token must run `npm install` and commit the result.** We could not
   produce correct integrity hashes for a registry we cannot reach.
-- **The container build.** `apps/frontend/Dockerfile` runs `npm ci`, so the token has to reach the
-  build. It is consumed as a BuildKit secret rather than an `ARG`, because an `ARG` is recorded in
-  image history and would ship the credential inside the image:
+- **The container build.** `apps/frontend/Dockerfile` needs the token at build time. It is consumed
+  as a BuildKit secret rather than an `ARG`, because an `ARG` is recorded in image history and
+  would ship the credential inside the image:
 
   ```bash
   DOCKER_BUILDKIT=1 docker build --secret id=npm_token,env=NODE_AUTH_TOKEN -t poc-frontend .
   ```
+
+#### Open deviation: the frontend build uses `npm install`, not `npm ci`
+
+`apps/frontend/package-lock.json` records none of `@yateesha-pappala/poc-bridge`, `tailwindcss`,
+`@tailwindcss/postcss`, `postcss`, `vitest` or `jsdom`. `npm ci` refuses to run when the lockfile
+and `package.json` disagree, and **that check is local** — a valid token does not get past it,
+because the lockfile `npm ci` reads is the one committed to the repo. Credentials present at build
+time cannot fix a lockfile that was never regenerated.
+
+To unblock deployment testing, both `npm ci` invocations in the Dockerfile were changed to
+`npm install`. The cost is real and should not be left in place: dependencies are no longer
+pinned, so two builds of the same commit can resolve different versions. That is a deliberate
+deviation from guide §9's "reproducible dependency installation".
+
+**To close it:** someone with a `read:packages` PAT runs `npm install` in `apps/frontend` once and
+commits the lockfile, then both lines in the Dockerfile go back to `npm ci` / `npm ci --omit=dev`.
+Nothing else changes. The token is needed only for that one command, not kept.
 
 **What we need:** confirmation of how the deploy pipeline supplies a build-time secret to a POC
 container build. Guide §9 says secrets provisioning for arbitrary POC containers "is not guaranteed

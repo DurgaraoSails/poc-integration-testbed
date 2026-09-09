@@ -79,9 +79,12 @@ environment yet.** The blockers are all external, and are listed with what we ne
 - **A GitHub Packages read token is needed for every build**, including the container build. It is
   passed as a BuildKit secret so it never lands in an image layer, but whether the deploy pipeline
   can supply a build-time secret is an open question — guide §9 says that is not guaranteed.
-- **`apps/frontend/package-lock.json` is stale** for the same reason: the install that would
-  regenerate it cannot resolve the private package. Someone with a token needs to run
-  `npm install` and commit it.
+- **`apps/frontend/package-lock.json` is stale**, and the Dockerfile currently works around it
+  with `npm install` instead of `npm ci` — so builds are **not** dependency-pinned right now.
+  Credentials in the pipeline do not fix this: `npm ci`'s lockfile/package.json consistency check
+  is local, and reads the lockfile committed to the repo. Someone with a `read:packages` token
+  needs to run `npm install` in `apps/frontend` once and commit the result, after which both
+  Dockerfile lines revert to `npm ci`. See the handoff doc.
 - **The JWT issuer and the portal origin need confirming per environment.** Both are now hard
   startup failures if wrong or missing, rather than silent misbehaviour.
 - **`platform.files.enabled: true` provisions nothing.** The Files panel is untested against real
