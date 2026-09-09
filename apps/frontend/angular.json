@@ -16,6 +16,7 @@
             "browser": "src/main.ts",
             "index": "src/index.html",
             "tsConfig": "tsconfig.app.json",
+            "inlineStyleLanguage": "css",
             "styles": ["src/styles.css"]
           },
           "configurations": {
@@ -25,7 +26,16 @@
               ],
               "outputHashing": "all"
             },
-            "development": { "optimization": false, "sourceMap": true }
+            "development": {
+              "optimization": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.development.ts"
+                }
+              ]
+            }
           },
           "defaultConfiguration": "production"
         },
@@ -36,6 +46,9 @@
             "development": { "buildTarget": "poc-testbed-frontend:build:development" }
           },
           "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test"
         }
       }
     }

@@ -1,9 +1,10 @@
-apiVersion: sails.poc/v1
-name: POC Integration Testbed
-description: >-
-  Sample chatbot POC used to test POC authentication (JWT verification against self-service-api's
-  JWKS), isolated per-user/per-POC file management, and the ingress + sidecar deploy pipeline.
-team: platform-testing
+# POC Integration Testbed — a sample POC used to exercise POC authentication (JWT verification
+# against the platform's JWKS), isolated per-user/per-POC file management, and the ingress +
+# sidecar deploy pipeline. Owned by platform-testing.
+#
+# Only the keys below are part of the manifest schema. Metadata like `name`, `description` and
+# `team` used to sit here as top-level keys: the platform warns about unknown keys and ignores
+# them, so they were documentation pretending to be configuration. They are comments now.
 
 containers:
   - name: frontend
@@ -19,10 +20,21 @@ containers:
     context: apps/backend
     port: 8081
     health: /healthz
+    env:
+      # A non-secret literal, and the one piece of JWT configuration the platform does not inject
+      # for itself (integration guide §3). It must match the platform's configured `jwt.issuer`;
+      # `self-service-api` is its current default. Confirm with the platform contact before
+      # deploying to a new environment — a wrong value here rejects every token.
+      #
+      # Reserved names (PORT, POC_SLUG, PLATFORM_API_URL, PORTAL_ORIGIN, and anything prefixed
+      # SAILS_ or SVC_) are deliberately absent: the platform owns those.
+      POC_EXPECTED_ISSUER: "self-service-api"
 
 resources: { cpu: "1", memory: "1Gi" }
 scaling:   { min: 0, max: 3 }
 
 platform:
   database: { enabled: false }
+  # Parsed, but it provisions nothing and creates no credentials — it does not by itself make the
+  # /poc-files endpoints available to this POC. Confirm access with the platform contact.
   files:    { enabled: true }

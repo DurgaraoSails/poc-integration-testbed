@@ -1,19 +1,26 @@
-/* Intentionally minimal: the platform stylesheet is linked at runtime from PLATFORM_API_URL
-   (see src/app/sails.ts), so a token change reaches this POC without a rebuild. Only POC-specific
-   layout goes here, written against the --sails-* semantic variables so dark mode needs no rules
-   of its own. */
+/* Global stylesheet — the only entry in angular.json > styles.
+   ---------------------------------------------------------------------------
+   styles/theme.css       Tailwind import, design tokens, dark variant, base resets.
+                          Shared design layer, vendored from poc-template. DO NOT
+                          hand-edit — see poc-template/docs/DESIGN-LAYER.md.
+   styles/_branding.css   Per-project brand overrides. EDIT THIS to rebrand.
+   styles/components.css  The .sui-* component layer. Shared. DO NOT hand-edit.
+                          Class reference in styles/README.md.
+   ---------------------------------------------------------------------------
+   Replaces the previous runtime <link> to PLATFORM_API_URL/assets/theme/v1/theme.css:
+   that endpoint appears nowhere in the integration contract, so the design layer is
+   vendored and versioned with this repo instead of fetched from an unconfirmed URL. */
+@import './styles/theme.css';
+@import './styles/_branding.css';
+@import './styles/components.css';
 
+/* Testbed-specific layout only. Everything visual comes from .sui-* above. */
 .testbed-grid {
   display: grid;
   gap: 1.25rem;
   max-width: 56rem;
   margin: 0 auto;
   padding: 2rem 1.25rem;
-}
-
-.testbed-section h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
 }
 
 .testbed-row {

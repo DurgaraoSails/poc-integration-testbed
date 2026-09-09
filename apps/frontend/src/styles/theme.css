@@ -1,0 +1,86 @@
+/* ---------------------------------------------------------------------------
+   Design tokens + base resets — the single source of truth for the visual
+   language. Kept separate from components.css so a POC app can import just
+   this file (or both) and inherit the exact same palette and dark-mode setup.
+   --------------------------------------------------------------------------- */
+@import 'tailwindcss';
+
+/* Manual (class-based) dark mode toggle instead of the OS-preference default. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Sails Software brand palette, taken from the official logo assets. */
+  --color-brand-50: #eaf4fb;
+  --color-brand-100: #d3e7f5;
+  --color-brand-300: #7fb0d6;
+  --color-brand-700: #064a70;
+  --color-brand-800: #053b5a;
+  --color-brand-accent: #00b9ff;
+  --color-brand-accent-hover: #00a3e6;
+  --color-brand-wave: #0c8dc6;
+
+  /* Dark theme surfaces, matching sailssoftware.com's own near-black navy. */
+  --color-brand-dark: #0f131e;
+  --color-brand-dark-panel: #141a2e;
+  --color-brand-dark-panel-hover: #1b2338;
+}
+
+@layer base {
+  /* Page defaults so a screen doesn't have to restate the background / text colour
+     on its host, and there's no white flash in dark mode before the view paints.
+     A screen can still override the surface on its own host (e.g. bg-gray-100). */
+  body {
+    @apply bg-gray-50 text-slate-900 antialiased dark:bg-brand-dark dark:text-white;
+  }
+
+  /* Tailwind's preflight resets buttons to the browser default (arrow) cursor; restore a
+     consistent pointer/text/not-allowed cursor across all interactive vs. text elements. */
+  a,
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  select:not(:disabled),
+  summary,
+  label {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role='button'][aria-disabled='true'],
+  input:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+
+  input:not([type='checkbox']):not([type='radio']):not(:disabled),
+  textarea:not(:disabled) {
+    cursor: text;
+  }
+}
+
+/* Thin scrollbar that blends into the panel it scrolls, instead of the OS default. */
+.scrollbar-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.5) transparent;
+}
+.scrollbar-subtle::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-subtle::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-subtle::-webkit-scrollbar-thumb {
+  background-color: rgb(148 163 184 / 0.5);
+  border-radius: 9999px;
+}
+/* Covers both usages: .dark as an ancestor (e.g. modals) and .dark combined on the same element (e.g. <html>). */
+.dark .scrollbar-subtle,
+.dark.scrollbar-subtle {
+  scrollbar-color: rgb(255 255 255 / 0.15) transparent;
+}
+.dark .scrollbar-subtle::-webkit-scrollbar-thumb,
+.dark.scrollbar-subtle::-webkit-scrollbar-thumb {
+  background-color: rgb(255 255 255 / 0.15);
+}

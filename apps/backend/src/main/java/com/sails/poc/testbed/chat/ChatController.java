@@ -19,8 +19,12 @@ public class ChatController {
     public record ChatResponse(String reply) {
     }
 
-    /** Public on purpose (see SecurityConfig) — the chatbot is a static demo, not a protected
-     *  feature, so it works even before you've fetched a session token. */
+    /**
+     * Authenticated, like every other route but /healthz. The replies are canned, but this is
+     * still a route that executes work on request — guide §1/§4.1 puts those behind a verified
+     * token regardless of what the work costs today, and the moment this bot is wired to a model
+     * the cost stops being zero.
+     */
     @PostMapping("/api/chat")
     public ChatResponse chat(@RequestBody(required = false) ChatRequest request) {
         String message = request != null ? request.message() : null;

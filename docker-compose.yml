@@ -16,20 +16,39 @@ services:
       PORT: "8081"
       POC_SLUG: ${POC_SLUG:-local-dev}
       PLATFORM_API_URL: ${PLATFORM_API_URL:-http://host.docker.internal:8080}
-      JWT_ISSUER: ${JWT_ISSUER:-self-service-api}
+      # Renamed from JWT_ISSUER: this is a POC-defined setting, not a platform-injected one, and
+      # the old name read like the latter. Declared as a literal in poc.yaml for real deployments.
+      POC_EXPECTED_ISSUER: ${POC_EXPECTED_ISSUER:-self-service-api}
+      # Signing keys over plaintext http are refused unless this is set, and then only to a
+      # loopback host. True here because local compose talks to a self-service-api on the host.
+      POC_ALLOW_INSECURE_PLATFORM_URL: "true"
     ports:
       - "8081:8081"
 
   frontend:
-    build: ./apps/frontend
+    build:
+      context: ./apps/frontend
+      # `@yateesha-pappala/poc-bridge` comes from GitHub Packages, so the build needs a
+      # read:packages token. Passed as a secret, so it never lands in an image layer:
+      #   export NODE_AUTH_TOKEN=<PAT>  &&  docker compose up --build
+      secrets:
+        - npm_token
     environment:
       PORT: "8080"
       POC_SLUG: ${POC_SLUG:-local-dev}
       BASE_PATH: ""
-      PORTAL_ORIGIN: "*"
+      # An explicit origin, never "*". The frontend refuses to start its bridge without a bare
+      # origin to check messages against, so there is no wildcard to fall back to — point this at
+      # whatever actually frames the POC (self-service-portal's `ng serve` default, by default).
+      # Running the frontend unframed is what `npm run dev` + the bridge's dev harness are for.
+      PORTAL_ORIGIN: ${PORTAL_ORIGIN:-http://localhost:4200}
       PLATFORM_API_URL: ${PLATFORM_API_URL:-http://host.docker.internal:8080}
       SVC_BACKEND_URL: "http://backend:8081"
     ports:
       - "8080:8080"
     depends_on:
       - backend
+
+secrets:
+  npm_token:
+    environment: NODE_AUTH_TOKEN

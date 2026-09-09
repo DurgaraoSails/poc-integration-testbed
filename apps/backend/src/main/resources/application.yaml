@@ -12,11 +12,19 @@ server:
 # all, but keeping routing at the root matches every other POC container and keeps /healthz simple.
 
 poc:
-  slug: ${POC_SLUG:local-dev}
-  platform-api-url: ${PLATFORM_API_URL:http://localhost:8080}
-  # The value self-service-api's JwtService signs tokens with (jwt.issuer, default self-service-api).
-  jwt-issuer: ${JWT_ISSUER:self-service-api}
+  # No defaults. PocProperties rejects a missing or malformed value at startup rather than letting
+  # this container come up pointed at the wrong platform — see the class comment there.
+  slug: ${POC_SLUG:}
+  platform-api-url: ${PLATFORM_API_URL:}
+  # NOT a platform-injected variable. The deployment pipeline injects the slug, the API URL and the
+  # portal origin, but no issuer — integration guide §3 names this gap and asks each POC to define
+  # its own setting and have the value confirmed. Supplied as a non-secret literal in poc.yaml's
+  # env block; `self-service-api` is the platform's current default, confirmed before use.
+  expected-issuer: ${POC_EXPECTED_ISSUER:}
+  # Signing keys are fetched from platform-api-url, so plaintext http is refused unless this is
+  # explicitly turned on, and then only for a loopback host.
+  allow-insecure-platform-url: ${POC_ALLOW_INSECURE_PLATFORM_URL:false}
 
 logging:
   level:
-    com.sails.poc.testbed: DEBUG
+    com.sails.poc.testbed: INFO

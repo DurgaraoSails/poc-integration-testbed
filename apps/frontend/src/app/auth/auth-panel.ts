@@ -1,73 +1,93 @@
-import { Component, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Component, inject, signal } from '@angular/core';
 import { JsonPipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { PocBridge } from '@yateesha-pappala/poc-bridge/poc';
 
-import { SessionService } from '../session.service';
+interface WhoAmI {
+  verified: boolean;
+  subject: string;
+  audience: string[];
+  issuer: string;
+  expiresAt: string;
+}
 
+/**
+ * Proves the round trip: the token the portal handed this iframe is accepted by this POC's own
+ * backend after a real signature/issuer/audience check against the platform's JWKS.
+ *
+ * The manual token-paste field that used to live here is gone. It was a standalone bypass in
+ * production code, which the guide §5 rules out; `startDevHarness()` in `main.ts` covers the
+ * develop-outside-the-portal case it existed for, and only in a development build.
+ *
+ * Nothing renders the token itself. `bridge.user()` is display convenience carried on
+ * `portal:session`; the authoritative identity is `subject` below, which came back from the
+ * backend after verification.
+ */
 @Component({
   selector: 'app-auth-panel',
   standalone: true,
-  imports: [FormsModule, JsonPipe],
+  imports: [JsonPipe],
   template: `
-    <section class="sails-card testbed-section">
-      <h2>Auth</h2>
+    <section class="sui-card p-5">
+      <h2 class="text-base font-semibold text-slate-900 dark:text-white">Auth</h2>
 
-      @if (session.bootstrapping()) {
-        <p class="sails-muted">Asked the parent window for a session (poc:ready) — waiting…</p>
-      } @else if (session.token()) {
-        <p class="sails-muted" style="margin-top:0">
-          Token source: <strong>{{ session.source() }}</strong>
-          @if (session.claims(); as claims) {
-            &middot; sub <code>{{ claims['sub'] }}</code>
-            &middot; aud <code>{{ claims['aud'] }}</code>
-          }
+      @if (bridge.user(); as user) {
+        <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          Signed in as <strong class="text-slate-900 dark:text-white">{{ user.displayName }}</strong>
+          <span class="sui-badge sui-badge--success ml-2">session active</span>
         </p>
-        <div class="testbed-row">
-          <button class="sails-btn" (click)="session.verifyWithBackend()" [disabled]="session.verifying()">
-            {{ session.verifying() ? 'Verifying…' : 'Verify with backend' }}
-          </button>
-          @if (session.source() === 'bridge') {
-            <button class="sails-btn sails-btn--secondary" (click)="session.requestRefresh()">
-              Ask portal to refresh (poc:refresh)
-            </button>
-          }
-          <button class="sails-btn sails-btn--secondary" (click)="session.clear()">Clear token</button>
-        </div>
+      }
 
-        @if (session.verifiedClaims(); as verified) {
-          <pre class="sails-scrollbar-subtle" style="margin-top:1rem; overflow-x:auto">{{ verified | json }}</pre>
-        }
-        @if (session.verifyError(); as error) {
-          <p style="color: var(--sails-danger, #c0392b)">{{ error }}</p>
-        }
-      } @else {
-        <p class="sails-muted" style="margin-top:0">
-          No session token yet — either this isn't embedded in the portal's iframe right now, or
-          the portal never answered <code>poc:ready</code> with a <code>portal:session</code>
-          message. Paste one you minted or copied manually to keep testing.
+      <div class="testbed-row mt-4">
+        <button class="sui-btn sui-btn--primary" (click)="verify()" [disabled]="verifying()">
+          {{ verifying() ? 'Verifying…' : 'Verify with backend' }}
+        </button>
+      </div>
+
+      @if (verified(); as result) {
+        <p class="mt-3 text-sm text-slate-600 dark:text-slate-400">
+          Backend verified the signature against the platform JWKS — subject
+          <code>{{ result.subject }}</code>, audience <code>{{ result.audience.join(', ') }}</code>,
+          issuer <code>{{ result.issuer }}</code>.
         </p>
-        <div class="testbed-row">
-          <input
-            class="sails-input"
-            style="flex: 1; min-width: 16rem"
-            placeholder="paste a POC-scoped JWT"
-            [(ngModel)]="manualToken"
-          />
-          <button class="sails-btn" (click)="useManualToken()" [disabled]="!manualToken.trim()">
-            Use token
-          </button>
-        </div>
+        <pre
+          class="scrollbar-subtle mt-3 overflow-x-auto rounded-md bg-gray-50 p-3 text-xs text-slate-700 dark:bg-brand-dark-panel dark:text-slate-200"
+          >{{ result | json }}</pre
+        >
+      }
+
+      @if (error(); as message) {
+        <p class="sui-error mt-3">{{ message }}</p>
       }
     </section>
   `,
 })
 export class AuthPanel {
-  protected readonly session = inject(SessionService);
-  protected manualToken = '';
+  protected readonly bridge = inject(PocBridge);
+  private readonly http = inject(HttpClient);
 
-  protected useManualToken(): void {
-    const token = this.manualToken.trim();
-    if (!token) return;
-    this.session.setToken(token, 'manual');
+  protected readonly verified = signal<WhoAmI | null>(null);
+  protected readonly verifying = signal(false);
+  protected readonly error = signal<string | null>(null);
+
+  protected verify(): void {
+    this.verifying.set(true);
+    this.error.set(null);
+    // Relative on purpose: resolved against <base href>, so one build works under any path prefix.
+    this.http.get<WhoAmI>('api/session/whoami').subscribe({
+      next: (result) => {
+        this.verified.set(result);
+        this.verifying.set(false);
+      },
+      error: (err: { status?: number }) => {
+        this.verified.set(null);
+        this.error.set(
+          err.status === 401
+            ? 'The backend rejected the token. Its signature, issuer or audience did not check out.'
+            : 'Could not reach the backend sidecar.',
+        );
+        this.verifying.set(false);
+      },
+    });
   }
 }

@@ -1,0 +1,37 @@
+/* ===========================================================================
+   PROJECT BRANDING — this is the file you edit to rebrand the template.
+   ===========================================================================
+
+   It re-declares the design tokens from theme.css. Tailwind v4 applies the last
+   @theme declaration, so anything set here wins over theme.css without touching
+   the subtree-managed file.
+
+   The values below are the Sails Software palette (same as the portal). To make
+   the app yours, change the hex values — every `bg-brand-700`, `text-brand-accent`,
+   `.sui-btn--primary`, focus ring, chart colour, etc. updates in step.
+
+   Token roles:
+     brand-50 / 100 / 300     tint backgrounds, subtle fills, chart tracks
+     brand-700                primary action, active nav, links (light mode)
+     brand-800                primary action hover (light mode)
+     brand-accent             primary action + links (dark mode), spotlight ring, logo
+     brand-accent-hover       primary action hover (dark mode)
+     brand-wave               the third path of the logo mark
+     brand-dark               app background (dark mode)
+     brand-dark-panel         card / header / dialog surface (dark mode)
+     brand-dark-panel-hover   card hover surface (dark mode)
+   =========================================================================== */
+@theme {
+  --color-brand-50: #eaf4fb;
+  --color-brand-100: #d3e7f5;
+  --color-brand-300: #7fb0d6;
+  --color-brand-700: #064a70;
+  --color-brand-800: #053b5a;
+  --color-brand-accent: #00b9ff;
+  --color-brand-accent-hover: #00a3e6;
+  --color-brand-wave: #0c8dc6;
+
+  --color-brand-dark: #0f131e;
+  --color-brand-dark-panel: #141a2e;
+  --color-brand-dark-panel-hover: #1b2338;
+}

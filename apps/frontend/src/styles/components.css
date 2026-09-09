@@ -1,0 +1,126 @@
+/* ---------------------------------------------------------------------------
+   .sui-* — shared component classes built from the utility clusters that were
+   copy-pasted across the app. Consumers still add layout utilities (w-full,
+   mt-6, grid placement…) in the template; these classes own the "what a button
+   / input / card / dialog looks like" decisions so the portal and every POC
+   stay visually identical.
+
+   Utilities always win over this layer, so `class="sui-btn sui-btn--primary
+   w-full"` or an override like `class="sui-badge sui-badge--neutral text-sm"`
+   works as expected.
+   --------------------------------------------------------------------------- */
+@layer components {
+  /* --- Buttons ----------------------------------------------------------- */
+  .sui-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .sui-btn--sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .sui-btn--lg {
+    @apply px-4 py-2.5 text-[15px];
+  }
+  .sui-btn--block {
+    @apply w-full;
+  }
+
+  .sui-btn--primary {
+    @apply bg-brand-700 text-white hover:enabled:bg-brand-800 focus-visible:outline-brand-700 dark:bg-brand-accent dark:text-brand-dark dark:hover:enabled:bg-brand-accent-hover dark:focus-visible:outline-brand-accent;
+  }
+  .sui-btn--danger {
+    @apply bg-red-600 text-white hover:enabled:bg-red-700 focus-visible:outline-red-600;
+  }
+  .sui-btn--outline {
+    @apply border border-brand-700 text-brand-700 hover:enabled:bg-brand-50 focus-visible:outline-brand-700 dark:border-brand-accent dark:text-brand-accent dark:hover:enabled:bg-brand-accent/10 dark:focus-visible:outline-brand-accent;
+  }
+  .sui-btn--neutral {
+    @apply border border-gray-300 text-gray-600 hover:enabled:bg-gray-50 focus-visible:outline-brand-700 dark:border-white/10 dark:text-gray-300 dark:hover:enabled:bg-white/10 dark:focus-visible:outline-brand-accent;
+  }
+  .sui-btn--ghost {
+    @apply text-gray-600 hover:enabled:text-brand-700 focus-visible:outline-brand-700 dark:text-gray-300 dark:hover:enabled:text-brand-accent dark:focus-visible:outline-brand-accent;
+  }
+
+  /* Small square icon-only button (edit / hide / delete rows, toolbar actions). */
+  .sui-icon-btn {
+    @apply inline-flex items-center justify-center rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-brand-accent dark:focus-visible:outline-brand-accent;
+  }
+  .sui-icon-btn--danger {
+    @apply hover:text-red-600 dark:hover:text-red-400;
+  }
+
+  /* --- Form controls --------------------------------------------------- */
+  .sui-input,
+  .sui-select,
+  .sui-textarea {
+    @apply w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder-gray-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700 aria-[invalid=true]:border-red-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-brand-dark dark:text-white dark:placeholder-gray-500 dark:focus-visible:outline-brand-accent;
+  }
+  /* Taller field for the auth screens (login / registration). */
+  .sui-input--lg {
+    @apply py-2.5 text-[15px];
+  }
+  /* Pill-shaped search field; consumer keeps its icon padding (pl-9 pr-9). */
+  .sui-input--search {
+    @apply rounded-full py-1.5;
+  }
+
+  .sui-label {
+    @apply mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300;
+  }
+  .sui-error {
+    @apply mt-1 text-xs text-red-600;
+  }
+  .sui-hint {
+    @apply mt-1 text-xs text-gray-400 dark:text-gray-500;
+  }
+
+  /* --- Surfaces ------------------------------------------------------- */
+  /* Panel surface only — padding stays a utility since it varies per use. */
+  .sui-card {
+    @apply rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-brand-dark-panel;
+  }
+
+  /* --- Badges / pills ------------------------------------------------- */
+  .sui-badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+  .sui-badge--neutral {
+    @apply bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300;
+  }
+  .sui-badge--brand {
+    @apply bg-brand-700 text-white dark:bg-brand-accent dark:text-brand-dark;
+  }
+  .sui-badge--success {
+    @apply bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400;
+  }
+  .sui-badge--danger {
+    @apply bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400;
+  }
+  .sui-badge--warning {
+    @apply bg-amber-50 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300;
+  }
+  .sui-badge--info {
+    @apply bg-blue-50 text-blue-700 dark:bg-blue-400/10 dark:text-blue-300;
+  }
+
+  /* --- Dialog (native <dialog>) ------------------------------------- */
+  /* Width stays a utility — modals range from max-w-sm to w-[90vw] max-w-3xl. */
+  .sui-dialog {
+    @apply fixed left-1/2 top-1/2 m-0 -translate-x-1/2 -translate-y-1/2 rounded-xl border border-gray-200 bg-white p-0 text-slate-900 shadow-xl backdrop:bg-black/50 dark:border-white/10 dark:bg-brand-dark-panel dark:text-white;
+  }
+  .sui-dialog-header {
+    @apply flex items-center justify-between gap-4 border-b border-gray-200 px-6 py-4 dark:border-white/10;
+  }
+  .sui-dialog-title {
+    @apply text-lg font-bold;
+  }
+  .sui-dialog-body {
+    @apply px-6 py-5;
+  }
+  .sui-dialog-footer {
+    @apply flex justify-end gap-3 border-t border-gray-200 px-6 py-4 dark:border-white/10;
+  }
+  /* Round close (×) button in a dialog header — greys, not brand, on hover. */
+  .sui-dialog-close {
+    @apply inline-flex items-center justify-center rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 dark:hover:bg-white/10 dark:hover:text-gray-200 dark:focus-visible:outline-brand-accent;
+  }
+}
